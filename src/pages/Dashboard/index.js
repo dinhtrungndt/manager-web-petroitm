@@ -1,33 +1,27 @@
 import { AlertCircle, Server, TerminalSquare } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import { useDispatch, useSelector } from 'react-redux';
+import { createTaskAction } from '../../stores/redux/CommandActions';
 
 const Dashboard = () => {
   const [stationId, setStationId] = useState('');
   const [sqlQuery, setSqlQuery] = useState('');
-  const [isSending, setIsSending] = useState(false);
 
-  const handleSendCommand = async (e) => {
+  const dispatch = useDispatch();
+
+  const { loading } = useSelector((state) => state.command || { loading: false });
+
+  const handleSendCommand = (e) => {
     e.preventDefault();
+
     if (!stationId || !sqlQuery) {
       return toast.error("Vui lòng điền đầy đủ Mã Trạm và Câu lệnh!");
     }
 
-    setIsSending(true);
-    try {
-      const res = await api.post('/admin/v1/create-task', {
-        station_id: stationId,
-        sql_query: sqlQuery
-      });
-
-      toast.success(res.data.message || 'Giao lệnh thành công!');
+    dispatch(createTaskAction(stationId, sqlQuery, () => {
       setSqlQuery('');
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Lỗi khi gửi lệnh!');
-    } finally {
-      setIsSending(false);
-    }
+    }));
   };
 
   return (
@@ -76,10 +70,10 @@ const Dashboard = () => {
           <div className="pt-4 border-t border-slate-100 flex justify-end">
             <button
               type="submit"
-              disabled={isSending}
+              disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl transition-all shadow-md hover:shadow-blue-600/30 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {isSending ? (
+              {loading ? (
                 <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang xử lý...</>
               ) : (
                 <><TerminalSquare className="w-5 h-5" /> Gửi Lệnh Thực Thi</>
