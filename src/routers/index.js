@@ -1,8 +1,9 @@
 import { useSelector } from 'react-redux';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import AdminLayout from '../components/layout/AdminLayout';
 import Login from '../pages/Auth/Login';
-
-const DummyAdminDashboard = () => <div className="p-10 text-2xl font-bold">Chào mừng mọi người vào trang Quản Trị!</div>;
+import Dashboard from '../pages/Dashboard';
+import VATUpdate from '../pages/VAT';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useSelector((state) => state.auth || { isAuthenticated: false, loading: false });
@@ -25,22 +26,37 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated } = useSelector((state) => state.auth || { isAuthenticated: false });
+
+  if (isAuthenticated) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return children;
+};
+
 const Routers = () => {
   return (
     <Routes>
-      {/* ================= PUBLIC ROUTES ================= */}
+      {/* Route Public */}
       <Route path="/" element={<Navigate to="/admin" replace />} />
-      <Route path="/login" element={<Login />} />
 
-      {/* ================= PROTECTED ROUTES ================= */}
-      <Route
-        path="/admin/*"
-        element={
-          <ProtectedRoute>
-            <DummyAdminDashboard />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/login" element={
+        <PublicRoute>
+          <Login />
+        </PublicRoute>
+      } />
+
+      {/* Routes Của Admin */}
+      <Route path="/admin" element={
+        <ProtectedRoute>
+          <AdminLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<Dashboard />} />
+        <Route path="vat" element={<VATUpdate />} />
+      </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
