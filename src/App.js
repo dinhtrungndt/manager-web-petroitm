@@ -1,24 +1,34 @@
-import logo from './logo.svg';
-import './App.css';
+import { useEffect } from "react";
+import { Toaster } from "react-hot-toast";
+import { useDispatch } from "react-redux";
+import Routers from "./routers";
+import { LOGIN_SUCCESS } from "./stores/redux/AuthTypes";
+import { getToken } from "./utils/Token";
 
 function App() {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      dispatch({
+        type: LOGIN_SUCCESS,
+        payload: { username: "admin_auto_restored" }
+      });
+    }
+  }, [dispatch]);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: { zIndex: 999999 },
+          duration: 3000,
+        }}
+      />
+      <Routers />
+    </>
   );
 }
 
