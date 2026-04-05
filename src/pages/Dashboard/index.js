@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckSquare, RefreshCw, Search, Server, Square, TerminalSquare, X } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Plus, RefreshCw, Search, Server, Square, TerminalSquare, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -8,15 +8,14 @@ import { fetchStationsAction } from '../../stores/redux/StationActions';
 const Dashboard = () => {
   const dispatch = useDispatch();
   const { loading: isCommandSending } = useSelector((state) => state.command || { loading: false });
-
   const { stations, isFetching } = useSelector((state) => state.station || { stations: [], isFetching: true });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStations, setSelectedStations] = useState([]);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [sqlQuery, setSqlQuery] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
+
+  const [queries, setQueries] = useState([{ id: Date.now(), text: '' }]);
 
   const fetchStations = useCallback((showLoading = false) => {
     dispatch(fetchStationsAction(showLoading));
@@ -24,11 +23,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchStations(true);
-
-    const interval = setInterval(() => {
-      fetchStations(false);
-    }, 15000);
-
+    const interval = setInterval(() => { fetchStations(false); }, 15000);
     return () => clearInterval(interval);
   }, [fetchStations]);
 
@@ -62,13 +57,30 @@ const Dashboard = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setIsConfirming(false);
-    setSqlQuery('');
+    setQueries([{ id: Date.now(), text: '' }]);
+  };
+
+  const addQueryBox = () => {
+    setQueries([...queries, { id: Date.now(), text: '' }]);
+  };
+
+  const removeQueryBox = (idToRemove) => {
+    if (queries.length === 1) return;
+    setQueries(queries.filter(q => q.id !== idToRemove));
+  };
+
+  const updateQueryText = (id, newText) => {
+    setQueries(queries.map(q => q.id === id ? { ...q, text: newText } : q));
   };
 
   const handleExecuteCommand = () => {
-    if (!sqlQuery.trim()) return toast.error("Vui lòng nhập câu lệnh SQL!");
+    const validQueries = queries.map(q => q.text.trim()).filter(text => text.length > 0);
 
-    dispatch(createTaskAction(selectedStations, sqlQuery, () => {
+    if (validQueries.length === 0) {
+      return toast.error("Vui lòng nhập ít nhất 1 câu lệnh SQL!");
+    }
+
+    dispatch(createTaskAction(selectedStations, validQueries, () => {
       closeModal();
       setSelectedStations([]);
     }));
@@ -111,7 +123,6 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Nút Làm mới thủ công */}
             <button
               onClick={() => fetchStations(true)}
               className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-200 bg-white shadow-sm"
@@ -126,7 +137,7 @@ const Dashboard = () => {
               className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-medium py-2 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm"
             >
               <TerminalSquare className="w-4 h-4" />
-              Gửi Lệnh Cho ({selectedStations.length}) Trạm
+              Giao Lệnh ({selectedStations.length})
             </button>
           </div>
         </div>
@@ -202,54 +213,93 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* MODAL HỘP THOẠI XÁC NHẬN */}
+      {/* MODAL HỘP THOẠI XÁC NHẬN (CÓ CHỨC NĂNG THÊM NHIỀU QUERY) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <TerminalSquare className="w-5 h-5 text-blue-600" />
-                Khởi tạo lệnh SQL
+                Khởi tạo lô lệnh SQL
               </h3>
               <button onClick={closeModal} className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6">
-              <div className="mb-4 bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-sm font-medium border border-blue-100">
-                Đang chuẩn bị gửi lệnh đến <strong>{selectedStations.length}</strong> trạm đã chọn.
+            {/* Body (Scrollable) */}
+            <div className="p-6 overflow-y-auto bg-slate-50/50 flex-1">
+              <div className="mb-5 bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-sm font-medium border border-blue-100 flex items-center justify-between">
+                <span>Đang chuẩn bị gửi <strong>{queries.length}</strong> lệnh đến <strong>{selectedStations.length}</strong> trạm đã chọn.</span>
               </div>
 
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Nhập Câu Lệnh (T-SQL):</label>
-              <textarea
-                rows="6"
-                value={sqlQuery}
-                onChange={(e) => setSqlQuery(e.target.value)}
-                disabled={isConfirming || isCommandSending}
-                placeholder="Ví dụ: UPDATE Sys_Users SET Is_Active = 1"
-                className="w-full p-4 bg-[#1e1e1e] text-[#ce9178] font-mono text-sm rounded-xl focus:ring-2 focus:ring-blue-600 outline-none shadow-inner disabled:opacity-80"
-                style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}
-              ></textarea>
+              <div className="space-y-4">
+                {queries.map((q, index) => (
+                  <div key={q.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative group">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-bold text-slate-700">Lệnh {index + 1}:</label>
 
+                      {/* Chỉ hiện nút Xóa nếu có nhiều hơn 1 ô */}
+                      {queries.length > 1 && (
+                        <button
+                          onClick={() => removeQueryBox(q.id)}
+                          disabled={isConfirming || isCommandSending}
+                          className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          title="Xóa lệnh này"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    <textarea
+                      rows="4"
+                      value={q.text}
+                      onChange={(e) => updateQueryText(q.id, e.target.value)}
+                      disabled={isConfirming || isCommandSending}
+                      placeholder="Nhập câu lệnh T-SQL..."
+                      className="w-full p-4 bg-[#1e1e1e] text-[#ce9178] font-mono text-sm rounded-lg focus:ring-2 focus:ring-blue-600 outline-none shadow-inner disabled:opacity-80 resize-y"
+                      style={{ fontFamily: "'Consolas', 'Courier New', monospace" }}
+                    ></textarea>
+                  </div>
+                ))}
+              </div>
+
+              {/* Nút thêm ô query mới */}
+              {!isConfirming && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={addQueryBox}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg border border-slate-300 border-dashed transition-all"
+                  >
+                    <Plus className="w-4 h-4" /> Thêm lệnh mới
+                  </button>
+                </div>
+              )}
+
+              {/* Cảnh báo khi nhấn Tiếp Tục */}
               {isConfirming && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in slide-in-from-top-2">
-                  <AlertTriangle className="w-6 h-6 text-red-500 shrink-0 mt-0.5" />
+                <div className="mt-6 p-5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in slide-in-from-bottom-2">
+                  <AlertTriangle className="w-7 h-7 text-red-500 shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-bold text-red-800">CẢNH BÁO NGUY HIỂM!</p>
-                    <p className="text-sm text-red-700 mt-1">
-                      Lệnh SQL này sẽ ảnh hưởng trực tiếp đến <strong>{selectedStations.length} Database</strong> của khách hàng. Bạn có chắc chắn cấu trúc lệnh đã chính xác 100% không?
+                    <p className="text-base font-bold text-red-800 mb-1">CẢNH BÁO MỨC ĐỘ CAO!</p>
+                    <p className="text-sm text-red-700 leading-relaxed">
+                      Lô gồm <strong>{queries.filter(q => q.text.trim()).length}</strong> lệnh SQL này sẽ được thực thi trên <strong>{selectedStations.length} Database</strong> khách hàng.<br />
+                      Vui lòng kiểm tra lại cấu trúc (Cẩn thận các lệnh UPDATE/DELETE quên WHERE). Bạn có chắc chắn muốn phát lệnh?
                     </p>
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            {/* Footer */}
+            <div className="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
               <button
                 onClick={closeModal}
                 disabled={isCommandSending}
-                className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors"
+                className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Hủy bỏ
               </button>
@@ -257,7 +307,7 @@ const Dashboard = () => {
               {!isConfirming ? (
                 <button
                   onClick={() => setIsConfirming(true)}
-                  disabled={!sqlQuery.trim()}
+                  disabled={queries.every(q => !q.text.trim())} // Disable nếu TẤT CẢ các ô đều rỗng
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
                   Tiếp tục <TerminalSquare className="w-4 h-4" />
@@ -266,12 +316,12 @@ const Dashboard = () => {
                 <button
                   onClick={handleExecuteCommand}
                   disabled={isCommandSending}
-                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors flex items-center gap-2 shadow-md shadow-red-500/20"
                 >
                   {isCommandSending ? (
-                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang bắn lệnh...</>
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang gửi lệnh...</>
                   ) : (
-                    <>XÁC NHẬN GỬI LỆNH</>
+                    <>PHÁT LỆNH NGAY</>
                   )}
                 </button>
               )}
