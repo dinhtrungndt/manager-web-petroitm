@@ -15,7 +15,7 @@ export const createTaskAction = (station_ids, sql_queries, onSuccessCb) => async
 
     toast.success(`Đã giao ${sql_queries.length} lệnh đến ${station_ids.length} trạm!`);
 
-    if (onSuccessCb) onSuccessCb();
+    if (onSuccessCb) onSuccessCb(data.commandIds);
 
   } catch (error) {
     const errorMsg = error.response?.data?.error || 'Lỗi khi gửi lệnh!';

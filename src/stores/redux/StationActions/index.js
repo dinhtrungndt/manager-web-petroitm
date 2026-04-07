@@ -10,12 +10,14 @@ export const fetchStationsAction = (showLoading = true) => async (dispatch) => {
   try {
     const res = await getStationsApi();
 
-    const formattedData = (res.data || []).map(st => ({
-      id: st.station_id,
-      mst: st.mst || st.station_id.split('_')[0],
-      hostname: st.hostname || st.station_id.split('_')[1],
-      status: st.is_online ? 'online' : 'offline',
-      lastActive: st.last_active || 'Không xác định'
+    const formattedData = (res.data || res.data?.data || []).map(st => ({
+      id: st.station_id || st.Station_id,
+      mst: st.mst || st.MST || (st.station_id || st.Station_id).split('_')[0],
+      companyName: st.company_name || st.Company_Name || 'Chưa cập nhật',
+      phone: st.phone || st.Phone || 'Chưa cập nhật',
+      hostname: st.hostname || st.Hostname || (st.station_id || st.Station_id).split('_')[1],
+      status: st.is_online || st.Is_Online ? 'online' : 'offline',
+      lastActive: st.last_active || st.Last_Active || 'Không xác định'
     }));
 
     dispatch({
