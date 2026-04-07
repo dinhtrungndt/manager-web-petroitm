@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, CheckSquare, ChevronRight, Database, History, Phone, Plus, RefreshCw, Search, Server, Square, TerminalSquare, Trash2, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CheckSquare, ChevronRight, Database, History, MessageCircle, Phone, Plus, RefreshCw, Search, Server, Square, TerminalSquare, Trash2, X, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,21 +18,19 @@ const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStep, setModalStep] = useState(0);
   const [queries, setQueries] = useState([{ id: Date.now(), text: '' }]);
+  const [zaloGroup, setZaloGroup] = useState('');
 
   // States cho Live Terminal
   const [trackedCommandIds, setTrackedCommandIds] = useState([]);
   const [liveResults, setLiveResults] = useState([]);
   const terminalEndRef = useRef(null);
 
-  // States Modal Lịch Sử Lệnh & Xem Data
+  // States Modal Lịch Sử
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [taskHistory, setTaskHistory] = useState([]);
   const [selectedTaskData, setSelectedTaskData] = useState(null);
   const [isFetchingHistory, setIsFetchingHistory] = useState(false);
 
-  // ==========================================
-  // XỬ LÝ DANH SÁCH TRẠM
-  // ==========================================
   const fetchStations = useCallback((showLoading = false) => {
     dispatch(fetchStationsAction(showLoading));
   }, [dispatch]);
@@ -43,9 +41,13 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [fetchStations]);
 
+  // Hỗ trợ tìm kiếm theo cả Tên Nhóm Zalo
   const filteredStations = stations.filter(st =>
     st.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    st.mst.includes(searchQuery)
+    st.mst.includes(searchQuery) ||
+    (st.companyName && st.companyName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (st.zaloGroup && st.zaloGroup.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (st.phone && st.phone.includes(searchQuery))
   );
 
   const handleSelectAll = () => {
@@ -58,15 +60,13 @@ const Dashboard = () => {
     else setSelectedStations([...selectedStations, id]);
   };
 
-  // ==========================================
-  // XỬ LÝ GIAO LỆNH & LIVE TERMINAL
-  // ==========================================
   const openModal = () => {
     if (selectedStations.length === 0) return toast.error('Vui lòng chọn ít nhất 1 trạm!');
     setIsModalOpen(true);
     setModalStep(0);
     setLiveResults([]);
     setTrackedCommandIds([]);
+    setZaloGroup('');
   };
 
   const closeModal = () => {
@@ -79,10 +79,11 @@ const Dashboard = () => {
     const validQueries = queries.map(q => q.text.trim()).filter(text => text.length > 0);
     if (validQueries.length === 0) return toast.error("Vui lòng nhập ít nhất 1 câu lệnh SQL!");
 
-    dispatch(createTaskAction(selectedStations, validQueries, (commandIds) => {
+    dispatch(createTaskAction(selectedStations, validQueries, zaloGroup, (commandIds) => {
       if (commandIds && commandIds.length > 0) {
         setTrackedCommandIds(commandIds);
         setModalStep(2);
+        setTimeout(() => fetchStations(false), 500);
       } else {
         closeModal();
         setSelectedStations([]);
@@ -107,18 +108,13 @@ const Dashboard = () => {
             const allTasks = res.data.data || [];
             const myTasks = allTasks.filter(t => trackedCommandIds.includes(t.Command_id));
             setLiveResults(myTasks);
-          } catch (error) {
-            console.error("Lỗi lấy live log:", error);
-          }
+          } catch (error) { }
         }, 1500);
       }
     }
     return () => clearInterval(interval);
   }, [modalStep, trackedCommandIds, liveResults]);
 
-  // ==========================================
-  // XỬ LÝ LỊCH SỬ & KẾT QUẢ DATA
-  // ==========================================
   const openHistoryModal = async () => {
     setIsHistoryModalOpen(true);
     setIsFetchingHistory(true);
@@ -169,8 +165,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* THỐNG KÊ NHANH */}
+    <div className="max-w-[1400px] mx-auto space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
           <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Server className="w-6 h-6" /></div>
@@ -188,11 +183,10 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* BẢNG QUẢN LÝ TRẠM */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
         <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-96">
-            <input type="text" placeholder="Tìm kiếm MST, Hostname..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm" />
+            <input type="text" placeholder="Tìm MST, Nhóm Zalo, Cty, SĐT..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm" />
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
           </div>
 
@@ -209,7 +203,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Khung chứa Bảng Danh sách trạm */}
         <div className="flex-1 overflow-auto relative">
           <table className="w-full text-left border-collapse">
             <thead className="bg-slate-100 sticky top-0 z-10 shadow-sm">
@@ -222,25 +215,35 @@ const Dashboard = () => {
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Trạng Thái</th>
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Mã Số Thuế</th>
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Tên Doanh Nghiệp</th>
+                <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Nhóm Zalo</th>
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Điện Thoại</th>
-                <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Tên Máy (Hostname)</th>
-                <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Truy cập cuối</th>
+                <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Hostname</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredStations.length === 0 && !isFetching ? (
-                <tr><td colSpan="6" className="p-12 text-center"><Server className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">Chưa có trạm nào đăng ký vào hệ thống.</p></td></tr>
+                <tr><td colSpan="7" className="p-12 text-center"><Server className="w-12 h-12 text-slate-300 mx-auto mb-3" /><p className="text-slate-500 font-medium">Chưa có trạm nào đăng ký vào hệ thống.</p></td></tr>
               ) : (
                 filteredStations.map((station) => (
                   <tr key={station.id} className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedStations.includes(station.id) ? 'bg-blue-50/50' : ''}`} onClick={() => handleSelectOne(station.id)}>
                     <td className="p-4 text-center">{selectedStations.includes(station.id) ? <CheckSquare className="w-5 h-5 text-blue-600 mx-auto" /> : <Square className="w-5 h-5 text-slate-300 mx-auto" />}</td>
-
                     <td className="p-4">{station.status === 'online' ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online</span> : <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600"><span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Offline</span>}</td>
                     <td className="p-4 font-mono text-sm text-slate-800 font-semibold">{station.mst}</td>
-                    <td className="p-4 text-sm font-medium text-slate-700 max-w-[250px] truncate" title={station.companyName}>{station.companyName}</td>
+                    <td className="p-4 text-sm font-medium text-slate-700 max-w-[200px] truncate" title={station.companyName}>{station.companyName}</td>
+
+                    {/* CỘT NHÓM ZALO */}
+                    <td className="p-4">
+                      {station.zaloGroup ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100 whitespace-nowrap">
+                          <MessageCircle className="w-3.5 h-3.5" /> {station.zaloGroup}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 italic text-xs">Chưa có</span>
+                      )}
+                    </td>
+
                     <td className="p-4 text-sm font-medium text-slate-600">{station.phone && station.phone !== 'Chưa cập nhật' ? <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> {station.phone}</span> : <span className="text-slate-400 italic">Trống</span>}</td>
-                    <td className="p-4 font-medium text-slate-600">{station.hostname}</td>
-                    <td className="p-4 text-sm text-slate-400">{station.lastActive}</td>
+                    <td className="p-4 font-medium text-slate-600 text-xs">{station.hostname}</td>
                   </tr>
                 ))
               )}
@@ -249,9 +252,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* ============================================================== */}
-      {/* MODAL 1: GIAO LỆNH ĐA BƯỚC */}
-      {/* ============================================================== */}
+      {/* MODAL GIAO LỆNH */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
           <div className={`bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-300 ${modalStep === 2 ? 'max-w-6xl' : 'max-w-3xl'}`}>
@@ -271,6 +272,22 @@ const Dashboard = () => {
                   <div className="mb-5 bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-sm font-medium border border-blue-100 flex items-center justify-between">
                     <span>Đang chuẩn bị gửi <strong>{queries.length}</strong> lệnh đến <strong>{selectedStations.length}</strong> trạm đã chọn.</span>
                   </div>
+
+                  {/* THÊM KHUNG NHẬP TÊN NHÓM ZALO VÀO ĐÂY */}
+                  <div className="mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Tên nhóm Zalo hỗ trợ (Tùy chọn):</label>
+                    <div className="relative">
+                      <MessageCircle className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        value={zaloGroup}
+                        onChange={(e) => setZaloGroup(e.target.value)}
+                        placeholder="Ví dụ: Nhóm Petro..."
+                        className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm transition-all"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-4">
                     {queries.map((q, index) => (
                       <div key={q.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative group">
@@ -355,7 +372,6 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 bg-white border-t border-slate-200 flex justify-end gap-3 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
               {modalStep !== 2 && <button onClick={closeModal} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors">Hủy bỏ</button>}
               {modalStep === 0 && <button onClick={() => setModalStep(1)} disabled={queries.every(q => !q.text.trim())} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium rounded-lg transition-colors flex items-center gap-2">Tiếp tục <ChevronRight className="w-4 h-4" /></button>}
@@ -370,9 +386,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ============================================================== */}
-      {/* MODAL 2: XEM NHẬT KÝ & KẾT QUẢ DATA */}
-      {/* ============================================================== */}
       {isHistoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
@@ -387,8 +400,6 @@ const Dashboard = () => {
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-slate-50/50">
-
-              {/* CỘT TRÁI: DANH SÁCH LỊCH SỬ ĐÃ ĐƯỢC THÊM LOG */}
               <div className={`w-full ${selectedTaskData ? 'md:w-1/3 border-r border-slate-200' : 'md:w-full'} overflow-y-auto p-4 space-y-3 transition-all duration-300`}>
                 {isFetchingHistory && taskHistory.length === 0 ? (
                   <p className="text-center text-slate-500 mt-10">Đang tải lịch sử...</p>
@@ -417,7 +428,14 @@ const Dashboard = () => {
                       )}
 
                       <div className="flex justify-between items-end">
-                        <span className="text-xs text-slate-400">{task.Executed_at || task.Created_at}</span>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-slate-400">{task.Executed_at || task.Created_at}</span>
+                          {task.Zalo_Group && (
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 w-fit">
+                              <MessageCircle className="w-3 h-3" /> {task.Zalo_Group}
+                            </span>
+                          )}
+                        </div>
                         {task.Result_Data && task.Result_Data !== 'null' && (
                           <span className="flex items-center gap-1 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full"><Database className="w-3 h-3" /> Xem Bảng</span>
                         )}
@@ -427,7 +445,6 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* CỘT PHẢI: CHI TIẾT KẾT QUẢ */}
               {selectedTaskData && (
                 <div className="w-full md:w-2/3 p-6 overflow-y-auto bg-white flex flex-col animate-in slide-in-from-right-4 duration-300">
                   <h4 className="text-lg font-bold text-slate-800 mb-4 border-b pb-2 flex justify-between items-center">
@@ -435,13 +452,17 @@ const Dashboard = () => {
                     <button onClick={() => setSelectedTaskData(null)} className="text-slate-400 hover:text-slate-700 md:hidden"><X className="w-5 h-5" /></button>
                   </h4>
 
-                  {/* Hiện thông báo lớn */}
+                  {selectedTaskData.Zalo_Group && (
+                    <div className="mb-3 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-medium flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4" /> Lệnh thuộc nhóm Zalo: <strong>{selectedTaskData.Zalo_Group}</strong>
+                    </div>
+                  )}
+
                   <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium border ${selectedTaskData.Status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                     <span className="font-bold">Thông báo từ trạm: </span>
                     {selectedTaskData.Message || (selectedTaskData.Status === 'SUCCESS' ? 'Lệnh đã được thực thi thành công.' : 'Lệnh bị lỗi hoặc chưa chạy.')}
                   </div>
 
-                  {/* Bản hiển thị Data (Nếu có Result_Data JSON) */}
                   {selectedTaskData.Result_Data && selectedTaskData.Result_Data !== 'null' ? (
                     <div className="flex-1">
                       <p className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><Database className="w-4 h-4 text-indigo-500" /> Dữ liệu trả về (Tối đa 100 dòng đầu):</p>
@@ -462,7 +483,6 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };
