@@ -108,7 +108,7 @@ const Dashboard = () => {
             const myTasks = allTasks.filter(t => trackedCommandIds.includes(t.Command_id));
             setLiveResults(myTasks);
           } catch (error) { }
-        }, 1500);
+        }, 60000);
       }
     }
     return () => clearInterval(interval);
