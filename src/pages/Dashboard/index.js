@@ -41,7 +41,6 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, [fetchStations]);
 
-  // Hỗ trợ tìm kiếm theo cả Tên Nhóm Zalo
   const filteredStations = stations.filter(st =>
     st.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     st.mst.includes(searchQuery) ||
@@ -217,7 +216,7 @@ const Dashboard = () => {
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Tên Doanh Nghiệp</th>
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Nhóm Zalo</th>
                 <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Điện Thoại</th>
-                <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Hostname</th>
+                <th className="p-4 text-xs font-semibold text-slate-500 uppercase border-b border-slate-200">Hostname / Bản</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -243,7 +242,13 @@ const Dashboard = () => {
                     </td>
 
                     <td className="p-4 text-sm font-medium text-slate-600">{station.phone && station.phone !== 'Chưa cập nhật' ? <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> {station.phone}</span> : <span className="text-slate-400 italic">Trống</span>}</td>
-                    <td className="p-4 font-medium text-slate-600 text-xs">{station.hostname}</td>
+
+                    <td className="p-4 font-medium text-slate-600 text-xs">
+                      <div>{station.hostname}</div>
+                      <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-white shadow-sm border border-slate-700">
+                        v{station.appVersion}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -282,7 +287,7 @@ const Dashboard = () => {
                         type="text"
                         value={zaloGroup}
                         onChange={(e) => setZaloGroup(e.target.value)}
-                        placeholder="Ví dụ: Nhóm Petro..."
+                        placeholder="Ví dụ: Nhóm Petro Anh Hải HN..."
                         className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm transition-all"
                       />
                     </div>

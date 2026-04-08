@@ -16,6 +16,7 @@ export const fetchStationsAction = (showLoading = true) => async (dispatch) => {
       companyName: st.company_name || st.Company_Name || 'Chưa cập nhật',
       phone: st.phone || st.Phone || 'Chưa cập nhật',
       zaloGroup: st.zalo_group || st.Zalo_Group || '',
+      appVersion: st.app_version || st.App_Version || '1.0.0',
       hostname: st.hostname || st.Hostname || (st.station_id || st.Station_id).split('_')[1],
       status: st.is_online || st.Is_Online ? 'online' : 'offline',
       lastActive: st.last_active || st.Last_Active || 'Không xác định'
