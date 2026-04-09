@@ -37,7 +37,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchStations(true);
-    const interval = setInterval(() => { fetchStations(false); }, 15000);
+    const interval = setInterval(() => { fetchStations(false); }, 60000);
     return () => clearInterval(interval);
   }, [fetchStations]);
 
